@@ -1,0 +1,40 @@
+﻿# Environments & Secrets (CRITICAL)
+.env
+.env.*
+!.env.example
+*.env
+backend/.env
+
+# Python & Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+.chroma_db/
+backend/.chroma_db/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+*.local
+
+# Logs and temporary files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+test_out.json
+test_out2.json
+
+# IDEs & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
