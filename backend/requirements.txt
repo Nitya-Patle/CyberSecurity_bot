@@ -11,3 +11,5 @@ pymongo
 chromadb
 python-dotenv
 requests
+pyjwt
+bcrypt

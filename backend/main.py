@@ -34,6 +34,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class MessageItem(BaseModel):
     role: str
     content: str
@@ -52,6 +61,80 @@ def read_root():
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "service": "CyberSentinel Backend"}
+
+from fastapi import Header, HTTPException
+from agent.auth import (
+    create_user, get_user_by_email, get_user_by_id,
+    verify_password, create_access_token, decode_access_token
+)
+
+@app.post("/api/auth/register")
+def register_endpoint(req: RegisterRequest):
+    name = req.name.strip()
+    email = req.email.strip().lower()
+    password = req.password
+
+    if not name or len(name) < 2:
+        raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
+    if not email or "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Please provide a valid email address")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    existing_user = get_user_by_email(email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    new_user = create_user(name=name, email=email, password=password)
+    token = create_access_token({"sub": str(new_user["id"]), "email": new_user["email"]})
+
+    return {
+        "status": "ok",
+        "token": token,
+        "user": new_user
+    }
+
+@app.post("/api/auth/login")
+def login_endpoint(req: LoginRequest):
+    email = req.email.strip().lower()
+    password = req.password
+
+    user = get_user_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    return {
+        "status": "ok",
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"]
+        }
+    }
+
+@app.get("/api/auth/me")
+def get_current_user(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    user = get_user_by_id(int(payload["sub"]))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "status": "ok",
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"]
+        }
+    }
 
 @app.post("/api/scan-url")
 def scan_endpoint(req: ScanRequest):

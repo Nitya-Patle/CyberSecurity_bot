@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import AuthModal from './AuthModal'
 import './App.css'
 
 const DEFAULT_WELCOME = {
@@ -17,9 +18,28 @@ function createSession() {
 }
 
 function App() {
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('cybersentinel_user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  });
+
+  const getStorageKeys = (user) => ({
+    sessionsKey: user ? `cybersentinel_sessions_${user.id}` : 'cybersentinel_sessions_guest',
+    activeIdKey: user ? `cybersentinel_active_id_${user.id}` : 'cybersentinel_active_id_guest'
+  });
+
   const [sessions, setSessions] = useState(() => {
     try {
-      const saved = localStorage.getItem('cybersentinel_sessions');
+      const savedUser = localStorage.getItem('cybersentinel_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+      const key = user ? `cybersentinel_sessions_${user.id}` : 'cybersentinel_sessions_guest';
+      const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -32,7 +52,10 @@ function App() {
 
   const [activeSessionId, setActiveSessionId] = useState(() => {
     try {
-      const savedId = localStorage.getItem('cybersentinel_active_id');
+      const savedUser = localStorage.getItem('cybersentinel_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+      const key = user ? `cybersentinel_active_id_${user.id}` : 'cybersentinel_active_id_guest';
+      const savedId = localStorage.getItem(key);
       if (savedId) return savedId;
     } catch (e) {
       console.error(e);
@@ -51,25 +74,60 @@ function App() {
 
   const messagesEndRef = useRef(null);
 
-  // Sync sessions to localStorage
+  // Sync sessions to user-scoped localStorage
   useEffect(() => {
+    if (!currentUser) return;
     try {
-      localStorage.setItem('cybersentinel_sessions', JSON.stringify(sessions));
+      const keys = getStorageKeys(currentUser);
+      localStorage.setItem(keys.sessionsKey, JSON.stringify(sessions));
     } catch (e) {
       console.error(e);
     }
-  }, [sessions]);
+  }, [sessions, currentUser]);
 
-  // Sync activeSessionId to localStorage
+  // Sync activeSessionId to user-scoped localStorage
   useEffect(() => {
+    if (!currentUser) return;
     try {
       if (activeSessionId) {
-        localStorage.setItem('cybersentinel_active_id', activeSessionId);
+        const keys = getStorageKeys(currentUser);
+        localStorage.setItem(keys.activeIdKey, activeSessionId);
       }
     } catch (e) {
       console.error(e);
     }
-  }, [activeSessionId]);
+  }, [activeSessionId, currentUser]);
+
+  const handleAuthSuccess = ({ token, user }) => {
+    localStorage.setItem('cybersentinel_token', token);
+    localStorage.setItem('cybersentinel_user', JSON.stringify(user));
+    setCurrentUser(user);
+
+    const keys = getStorageKeys(user);
+    try {
+      const saved = localStorage.getItem(keys.sessionsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          const savedActiveId = localStorage.getItem(keys.activeIdKey);
+          setActiveSessionId(savedActiveId && parsed.some(s => s.id === savedActiveId) ? savedActiveId : parsed[0].id);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    const fresh = createSession();
+    setSessions([fresh]);
+    setActiveSessionId(fresh.id);
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem('cybersentinel_token');
+    localStorage.removeItem('cybersentinel_user');
+    setCurrentUser(null);
+  };
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0] || createSession();
   const currentMessages = activeSession.messages || [];
@@ -313,6 +371,14 @@ function App() {
     return <ReactMarkdown>{msg.content}</ReactMarkdown>;
   };
 
+  if (!currentUser) {
+    return <AuthModal onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  const userInitials = currentUser?.name 
+    ? currentUser.name.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() 
+    : 'CS';
+
   return (
     <div className="layout-root">
       {/* ChatGPT-style Left Sidebar */}
@@ -371,18 +437,25 @@ function App() {
           </div>
         </div>
 
-        {/* Sidebar Footer / User Profile */}
+        {/* Sidebar Footer / User Profile & Logout */}
         <div className="sidebar-footer">
           <div className="user-profile">
-            <div className="user-avatar-badge">NP</div>
+            <div className="user-avatar-badge">{userInitials}</div>
             <div className="user-details">
-              <span className="user-name">Nitya Patle</span>
-              <span className="user-status">Security Analyst</span>
+              <span className="user-name" title={currentUser?.name}>{currentUser?.name || 'Security Analyst'}</span>
+              <span className="user-status" title={currentUser?.email}>{currentUser?.email || 'Verified User'}</span>
             </div>
           </div>
-          <button className="clear-all-btn" onClick={handleClearAllChats} title="Clear all history">
-            Clear All
-          </button>
+          <div className="sidebar-footer-actions">
+            <button className="signout-btn" onClick={handleSignOut} title="Sign Out of CyberSentinel">
+              <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" height="15" width="15">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+            <button className="clear-all-btn" onClick={handleClearAllChats} title="Clear all history">
+              Clear
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -415,7 +488,10 @@ function App() {
               🔍 Scan URL
             </button>
             <button className="header-new-btn" onClick={handleNewChat} title="New chat">
-              + New Chat
+              + New
+            </button>
+            <button className="header-signout-btn" onClick={handleSignOut} title="Sign Out">
+              Sign Out
             </button>
           </div>
         </header>

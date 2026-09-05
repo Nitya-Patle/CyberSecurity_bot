@@ -1,4 +1,4 @@
-﻿# Environments & Secrets (CRITICAL)
+# Environments & Secrets (CRITICAL)
 .env
 .env.*
 !.env.example
@@ -14,6 +14,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.sqlite3
+*.db
+backend/users.db
+users.db
 .chroma_db/
 backend/.chroma_db/
 
