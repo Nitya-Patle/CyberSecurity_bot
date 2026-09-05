@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown'
 import AuthModal from './AuthModal'
 import './App.css'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001').replace(/\/$/, '');
+
 const DEFAULT_WELCOME = {
   role: 'bot',
   content: 'Hello! I am **CyberSentinel**, your AI cybersecurity assistant.\n\nAsk me anything about phishing, malware, incident response, or online safety.'
@@ -213,7 +215,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8001/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -241,7 +243,7 @@ function App() {
       console.error('Error fetching chat response:', error);
       const errorMsg = {
         role: 'bot',
-        content: '⚠️ Error communicating with CyberSentinel backend on `http://localhost:8001`. Please check if the backend server is running.'
+        content: `⚠️ Error communicating with CyberSentinel backend at \`${API_BASE_URL}\`. Please check if the backend server is running.`
       };
       setSessions(prev => prev.map(s => {
         if (s.id === activeSession.id) {
@@ -289,7 +291,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8001/api/scan-url', {
+      const response = await fetch(`${API_BASE_URL}/api/scan-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: targetUrl }),

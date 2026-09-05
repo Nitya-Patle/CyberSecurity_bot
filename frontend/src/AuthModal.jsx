@@ -1,5 +1,7 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import './App.css'
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001').replace(/\/$/, '');
 
 export default function AuthModal({ onAuthSuccess }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
@@ -42,7 +44,7 @@ export default function AuthModal({ onAuthSuccess }) {
     }
 
     setIsLoading(true)
-    const endpoint = mode === 'register' ? 'http://localhost:8001/api/auth/register' : 'http://localhost:8001/api/auth/login'
+    const endpoint = mode === 'register' ? `${API_BASE_URL}/api/auth/register` : `${API_BASE_URL}/api/auth/login`
     const payload = mode === 'register' 
       ? { name: name.trim(), email: email.trim().toLowerCase(), password } 
       : { email: email.trim().toLowerCase(), password }

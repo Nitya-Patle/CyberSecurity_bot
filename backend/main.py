@@ -28,7 +28,7 @@ app.add_middleware(
         "http://localhost:5174",
         "http://127.0.0.1:5174"
     ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -179,5 +179,7 @@ def chat_endpoint(req: ChatRequest):
         return {"response": f"Error processing request: {str(e)}"}
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
